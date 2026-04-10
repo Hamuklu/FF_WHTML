@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FF Wölfnitz - Spendensammlung</title>
+    
+    <!-- Leaflet für OSM-Karte -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Font Awesome für Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        /* Header & Ribbon */
+        .header {
+            background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .header-title i {
+            font-size: 32px;
+        }
+
+        .header-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            text-align: right;
+            font-size: 14px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #c41e3a;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn-primary:hover {
+            background: #8b0000;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #c41e3a;
+            border: 2px solid #c41e3a;
+        }
+
+        .btn-secondary:hover {
+            background: #f0f0f0;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        /* Ribbon mit Statistiken */
+        .ribbon {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 2px solid #c41e3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .ribbon-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .ribbon-item strong {
+            font-size: 18px;
+            color: #c41e3a;
+        }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+
+        .color-gray { background: #999; }
+        .color-green { background: #28a745; }
+        .color-red { background: #dc3545; }
+        .color-yellow { background: #ffc107; }
+
+        /* Main Container */
+        .container {
+            display: flex;
+            height: calc(100vh - 140px);
+            gap: 0;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 2px solid #ddd;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #c41e3a;
+            margin-bottom: 12px;
+            border-bottom: 2px solid #c41e3a;
+            padding-bottom: 8px;
+        }
+
+        .district-select, .filter-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .district-select:focus, .filter-select:focus {
+            outline: none;
+            border-color: #c41e3a;
+            box-shadow: 0 0 5px rgba(196, 30, 58, 0.3);
+        }
+
+        .stats-box {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 4px solid #c41e3a;
+        }
+
+        .stats-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stats-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #c41e3a;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 25px;
+            background: #e9ecef;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* Map */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .popup-content {
+            font-size: 14px;
+            min-width: 250px;
+        }
+
+        .popup-header {
+            font-weight: bold;
+            color: #c41e3a;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #c41e3a;
+            padding-bottom: 8px;
+        }
+
+        .popup-field {
+            margin-bottom: 10px;
+        }
+
+        .popup-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .popup-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .popup-input:focus {
+            outline: none;
+            border-color: #c41e3a;
+            box-shadow: 0 0 3px rgba(196, 30, 58, 0.3);
+        }
+
+        .popup-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .popup-buttons button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .popup-save {
+            background: #28a745;
+            color: white;
+        }
+
+        .popup-save:hover {
+            background: #218838;
+        }
+
+        .popup-cancel {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .popup-cancel:hover {
+            background: #dee2e6;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            font-size: 22px;
+            font-weight: bold;
+            color: #c41e3a;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #c41e3a;
+            padding-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #333;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #c41e3a;
+            box-shadow: 0 0 5px rgba(196, 30, 58, 0.3);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Auth Screen */
+        .auth-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-screen.active {
+            display: flex;
+        }
+
+        .auth-box {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .auth-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #c41e3a;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .auth-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .auth-tab.active {
+            background: #c41e3a;
+            color: white;
+            border-color: #c41e3a;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 2px solid #ddd;
+                max-height: 200px;
+            }
+
+            .map-container {
+                height: 500px;
+            }
+
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .ribbon {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .legend {
+                justify-content: center;
+            }
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-10 {
+            margin-top: 10px;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .mb-10 {
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #c41e3a;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth Screen -->
+    <div id="authScreen" class="auth-screen active">
+        <div class="auth-box">
+            <div class="auth-title">
+                <i class="fas fa-fire"></i> FF Wölfnitz
+            </div>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
+                <button class="auth-tab" onclick="switchAuthTab('register')">Registrieren</button>
+            </div>
+
+            <div id="loginForm">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="loginEmail" class="form-input" placeholder="deine@email.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Passwort</label>
+                    <input type="password" id="loginPassword" class="form-input" placeholder="Passwort">
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="handleLogin()">
+                    Anmelden
+                </button>
+            </div>
+
+            <div id="registerForm" class="hidden">
+                <div class="form-group">
+                    <label class="form-label">Name</label>
+                    <input type="text" id="registerName" class="form-input" placeholder="Dein Name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="registerEmail" class="form-input" placeholder="deine@email.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Passwort</label>
+                    <input type="password" id="registerPassword" class="form-input" placeholder="Passwort">
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="handleRegister()">
+                    Registrieren
+                </button>
+            </div>
+
+            <div id="authError" class="alert alert-error hidden mt-20"></div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="appContainer" class="hidden">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">
+                <i class="fas fa-fire"></i>
+                FF Wölfnitz - Spendensammlung
+            </div>
+            <div class="header-user">
+                <div class="user-info">
+                    <div id="userName" style="font-weight: 600;"></div>
+                    <div class="user-role" id="userRole"></div>
+                </div>
+                <button class="btn btn-secondary" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i> Abmelden
+                </button>
+            </div>
+        </div>
+
+        <!-- Ribbon -->
+        <div class="ribbon">
+            <div class="ribbon-item">
+                <i class="fas fa-map-marker-alt" style="color: #c41e3a; font-size: 18px;"></i>
+                <span>Adressen: <strong id="totalAddresses">0</strong></span>
+            </div>
+            <div class="ribbon-item">
+                <i class="fas fa-check-circle" style="color: #28a745; font-size: 18px;"></i>
+                <span>Besucht: <strong id="visitedCount">0</strong></span>
+            </div>
+            <div class="ribbon-item">
+                <i class="fas fa-euro-sign" style="color: #ffc107; font-size: 18px;"></i>
+                <span>Verkauft: <strong id="totalSales">0€</strong></span>
+            </div>
+            <div class="ribbon-item">
+                <i class="fas fa-heart" style="color: #dc3545; font-size: 18px;"></i>
+                <span>Gespendet: <strong id="totalDonations">0€</strong></span>
+            </div>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color color-gray"></div>
+                    <span>Nicht besucht</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-green"></div>
+                    <span>Gekauft</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-yellow"></div>
+                    <span>Nicht angetroffen</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-red"></div>
+                    <span>Kein Interesse</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Container -->
+        <div class="container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-title">
+                        <i class="fas fa-filter"></i> Filter
+                    </div>
+                    <select id="districtFilter" class="district-select" onchange="filterByDistrict()">
+                        <option value="">Alle Gebiete</option>
+                    </select>
+                    <select id="statusFilter" class="filter-select" onchange="filterByStatus()">
+                        <option value="">Alle Status</option>
+                        <option value="not_visited">Nicht besucht</option>
+                        <option value="purchased">Gekauft</option>
+                        <option value="not_home">Nicht angetroffen</option>
+                        <option value="no_interest">Kein Interesse</option>
+                    </select>
+                </div>
+
+                <div class="sidebar-section" id="adminSection" class="hidden">
+                    <div class="sidebar-title">
+                        <i class="fas fa-cog"></i> Admin
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="openAdminModal('collectors')">
+                        <i class="fas fa-users"></i> Sammler verwalten
+                    </button>
+                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="openAdminModal('districts')">
+                        <i class="fas fa-map"></i> Gebiete verwalten
+                    </button>
+                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="openAdminModal('stats')">
+                        <i class="fas fa-chart-bar"></i> Auswertungen
+                    </button>
+                    <button class="btn btn-danger" style="width: 100%;" onclick="openAdminModal('reset')">
+                        <i class="fas fa-redo"></i> Daten zurücksetzen
+                    </button>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-title">
+                        <i class="fas fa-chart-pie"></i> Statistiken
+                    </div>
+                    <div class="stats-box">
+                        <div class="stats-label">Fortschritt</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressBar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    <div class="stats-box">
+                        <div class="stats-label">Verkauft</div>
+                        <div class="stats-value" id="salesStat">0€</div>
+                    </div>
+                    <div class="stats-box">
+                        <div class="stats-label">Gespendet</div>
+                        <div class="stats-value" id="donationsStat">0€</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map -->
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Modals -->
+    <!-- Collectors Modal -->
+    <div id="collectorsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-users"></i> Sammler verwalten
+            </div>
+            <div id="collectorsList"></div>
+            <button class="btn btn-success" style="width: 100%; margin-top: 20px;" onclick="openAddCollectorForm()">
+                <i class="fas fa-plus"></i> Neuer Sammler
+            </button>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" onclick="closeModal('collectorsModal')">
+                Schließen
+            </button>
+        </div>
+    </div>
+
+    <!-- Districts Modal -->
+    <div id="districtsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-map"></i> Gebiete verwalten
+            </div>
+            <div id="districtsList"></div>
+            <button class="btn btn-success" style="width: 100%; margin-top: 20px;" onclick="openAddDistrictForm()">
+                <i class="fas fa-plus"></i> Neues Gebiet
+            </button>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" onclick="closeModal('districtsModal')">
+                Schließen
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="statsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-chart-bar"></i> Auswertungen
+            </div>
+            <div id="statsContent"></div>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 20px;" onclick="closeModal('statsModal')">
+                Schließen
+            </button>
+        </div>
+    </div>
+
+    <!-- Reset Modal -->
+    <div id="resetModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-redo"></i> Daten zurücksetzen
+            </div>
+            <p style="margin-bottom: 20px; color: #666;">
+                Möchtest du wirklich alle Besuchsdaten zurücksetzen? Die Daten werden archiviert und bleiben für die Admin-Auswertung sichtbar.
+            </p>
+            <div class="form-group">
+                <label class="form-label">Bestätigung eingeben: "ZURÜCKSETZEN"</label>
+                <input type="text" id="resetConfirm" class="form-input" placeholder="Bestätigung">
+            </div>
+            <button class="btn btn-danger" style="width: 100%; margin-top: 20px;" onclick="confirmReset()">
+                <i class="fas fa-trash"></i> Daten zurücksetzen
+            </button>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" onclick="closeModal('resetModal')">
+                Abbrechen
+            </button>
+        </div>
+    </div>
+
+    <!-- Add Collector Form -->
+    <div id="addCollectorModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-user-plus"></i> Neuer Sammler
+            </div>
+            <div class="form-group">
+                <label class="form-label">Name</label>
+                <input type="text" id="collectorName" class="form-input" placeholder="Name des Sammlers">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" id="collectorEmail" class="form-input" placeholder="email@example.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Gebiet</label>
+                <select id="collectorDistrict" class="form-select">
+                    <option value="">Kein Gebiet zugewiesen</option>
+                </select>
+            </div>
+            <button class="btn btn-success" style="width: 100%; margin-top: 20px;" onclick="saveCollector()">
+                <i class="fas fa-save"></i> Speichern
+            </button>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" onclick="closeModal('addCollectorModal')">
+                Abbrechen
+            </button>
+        </div>
+    </div>
+
+    <!-- Add District Form -->
+    <div id="addDistrictModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-map-marker-alt"></i> Neues Gebiet
+            </div>
+            <div class="form-group">
+                <label class="form-label">Gebietsname</label>
+                <input type="text" id="districtName" class="form-input" placeholder="z.B. Hallegger Straße">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Straßennamen (komma-getrennt)</label>
+                <textarea id="districtStreets" class="form-textarea" placeholder="Hallegger Straße, Pitzelstättenweg, ..."></textarea>
+            </div>
+            <button class="btn btn-success" style="width: 100%; margin-top: 20px;" onclick="saveDistrict()">
+                <i class="fas fa-save"></i> Speichern
+            </button>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" onclick="closeModal('addDistrictModal')">
+                Abbrechen
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ===== KONFIGURATION =====
+        const SUPABASE_URL = "https://orarhdbyavikmmxflesi.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_Zq3rXnzygrFM17VW3qF_Cg_uX6cTm-0";
+        
+        // Supabase Client
+        const { createClient } = window.supabase;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // ===== GLOBALE VARIABLEN =====
+        let currentUser = null;
+        let map = null;
+        let markers = {};
+        let addresses = [];
+        let districts = [];
+        let collectors = [];
+        let visits = [];
+        let currentDistrict = null;
+        let currentStatus = null;
+
+        // ===== INITIALIZATION =====
+        window.addEventListener('load', async () => {
+            await checkAuth();
+        });
+
+        // ===== AUTHENTIFIZIERUNG =====
+        async function checkAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (session) {
+                currentUser = session.user;
+                await initializeApp();
+            }
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                showAuthError('Bitte Email und Passwort eingeben');
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) throw error;
+
+                currentUser = data.user;
+                await initializeApp();
+            } catch (error) {
+                showAuthError('Login fehlgeschlagen: ' + error.message);
+            }
+        }
+
+        async function handleRegister() {
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            if (!name || !email || !password) {
+                showAuthError('Bitte alle Felder ausfüllen');
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: { display_name: name }
+                    }
+                });
+
+                if (error) throw error;
+
+                currentUser = data.user;
+                await initializeApp();
+            } catch (error) {
+                showAuthError('Registrierung fehlgeschlagen: ' + error.message);
+            }
+        }
+
+        function handleLogout() {
+            supabase.auth.signOut().then(() => {
+                currentUser = null;
+                location.reload();
+            });
+        }
+
+        function showAuthError(message) {
+            const errorDiv = document.getElementById('authError');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        function switchAuthTab(tab) {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const tabs = document.querySelectorAll('.auth-tab');
+
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+            }
+        }
+
+        // ===== APP INITIALIZATION =====
+        async function initializeApp() {
+            document.getElementById('authScreen').classList.remove('active');
+            document.getElementById('appContainer').classList.remove('hidden');
+
+            // User Info anzeigen
+            const userRole = await getUserRole();
+            document.getElementById('userName').textContent = currentUser.email;
+            document.getElementById('userRole').textContent = userRole === 'admin' ? 'Administrator' : 'Sammler';
+
+            // Admin-Bereich anzeigen
+            if (userRole === 'admin') {
+                document.getElementById('adminSection').classList.remove('hidden');
+            }
+
+            // Daten laden
+            await loadAddresses();
+            await loadDistricts();
+            await loadCollectors();
+            await loadVisits();
+
+            // Karte initialisieren
+            initializeMap();
+
+            // UI aktualisieren
+            updateStatistics();
+            populateFilters();
+        }
+
+        async function getUserRole() {
+            try {
+                const { data, error } = await supabase
+                    .from('users_roles')
+                    .select('is_admin')
+                    .eq('email', currentUser.email)
+                    .single();
+
+                if (error) return 'user';
+                return data?.is_admin === 'true' ? 'admin' : 'user';
+            } catch {
+                return 'user';
+            }
+        }
+
+        // ===== DATEN LADEN =====
+        async function loadAddresses() {
+            try {
+                const { data, error } = await supabase
+                    .from('adress')
+                    .select('*');
+
+                if (error) throw error;
+                addresses = data || [];
+            } catch (error) {
+                console.error('Fehler beim Laden der Adressen:', error);
+            }
+        }
+
+        async function loadDistricts() {
+            try {
+                const { data, error } = await supabase
+                    .from('districts')
+                    .select('*');
+
+                if (error) throw error;
+                districts = data || [];
+            } catch (error) {
+                console.error('Fehler beim Laden der Gebiete:', error);
+            }
+        }
+
+        async function loadCollectors() {
+            try {
+                const { data, error } = await supabase
+                    .from('collectors')
+                    .select('*');
+
+                if (error) throw error;
+                collectors = data || [];
+            } catch (error) {
+                console.error('Fehler beim Laden der Sammler:', error);
+            }
+        }
+
+        async function loadVisits() {
+            try {
+                const { data, error } = await supabase
+                    .from('visits')
+                    .select('*');
+
+                if (error) throw error;
+                visits = data || [];
+            } catch (error) {
+                console.error('Fehler beim Laden der Besuche:', error);
+            }
+        }
+
+        // ===== KARTE =====
+        function initializeMap() {
+            // Karte zentriert auf Klagenfurt/Wölfnitz
+            map = L.map('map').setView([46.67, 14.25], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Marker hinzufügen
+            addresses.forEach(address => {
+                addMarker(address);
+            });
+
+            // Karte an Marker anpassen
+            if (Object.keys(markers).length > 0) {
+                const group = new L.featureGroup(Object.values(markers));
+                map.fitBounds(group.getBounds());
+            }
+        }
+
+        function addMarker(address) {
+            const visit = visits.find(v => v.osm_id === address.osm_id);
+            const status = visit?.status || 'not_visited';
+            const color = getStatusColor(status);
+
+            const marker = L.circleMarker([address.latitude, address.longitude], {
+                radius: 8,
+                fillColor: color,
+                color: '#333',
+                weight: 2,
+                opacity: 0.8,
+                fillOpacity: 0.7
+            }).addTo(map);
+
+            marker.on('click', () => openAddressPopup(address, visit));
+            markers[address.osm_id] = marker;
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'not_visited': '#999',
+                'purchased': '#28a745',
+                'not_home': '#ffc107',
+                'no_interest': '#dc3545'
+            };
+            return colors[status] || '#999';
+        }
+
+        function openAddressPopup(address, visit) {
+            const fullAddress = `${address.addr_street} ${address.addr_housenumber}, 9020 Klagenfurt`;
+            
+            const popupContent = document.createElement('div');
+            popupContent.className = 'popup-content';
+            popupContent.innerHTML = `
+                <div class="popup-header">${fullAddress}</div>
+                <div class="popup-field">
+                    <div class="popup-label">Status</div>
+                    <select id="popupStatus" class="popup-input">
+                        <option value="not_visited" ${visit?.status === 'not_visited' ? 'selected' : ''}>Nicht besucht</option>
+                        <option value="purchased" ${visit?.status === 'purchased' ? 'selected' : ''}>Gekauft</option>
+                        <option value="not_home" ${visit?.status === 'not_home' ? 'selected' : ''}>Nicht angetroffen</option>
+                        <option value="no_interest" ${visit?.status === 'no_interest' ? 'selected' : ''}>Kein Interesse</option>
+                    </select>
+                </div>
+                <div class="popup-field">
+                    <div class="popup-label">Verkauft (€)</div>
+                    <input type="number" id="popupSale" class="popup-input" value="${visit?.sale_euro || 0}" step="0.01">
+                </div>
+                <div class="popup-field">
+                    <div class="popup-label">Gespendet (€)</div>
+                    <input type="number" id="popupDonation" class="popup-input" value="${visit?.donation_euro || 0}" step="0.01">
+                </div>
+                <div class="popup-buttons">
+                    <button class="popup-save" onclick="saveVisit(${address.osm_id})">Speichern</button>
+                    <button class="popup-cancel" onclick="map.closePopup()">Abbrechen</button>
+                </div>
+            `;
+
+            const popup = L.popup()
+                .setLatLng([address.latitude, address.longitude])
+                .setContent(popupContent)
+                .openOn(map);
+        }
+
+        async function saveVisit(osmId) {
+            const status = document.getElementById('popupStatus').value;
+            const sale = parseFloat(document.getElementById('popupSale').value) || 0;
+            const donation = parseFloat(document.getElementById('popupDonation').value) || 0;
+
+            try {
+                const existingVisit = visits.find(v => v.osm_id === osmId);
+
+                if (existingVisit) {
+                    // Update
+                    const { error } = await supabase
+                        .from('visits')
+                        .update({
+                            status,
+                            sale_euro: sale,
+                            donation_euro: donation
+                        })
+                        .eq('id', existingVisit.id);
+
+                    if (error) throw error;
+                } else {
+                    // Insert
+                    const { error } = await supabase
+                        .from('visits')
+                        .insert([{
+                            osm_id: osmId,
+                            status,
+                            sale_euro: sale,
+                            donation_euro: donation,
+                            collector_id: null
+                        }]);
+
+                    if (error) throw error;
+                }
+
+                // Daten neu laden
+                await loadVisits();
+                updateMarkerColor(osmId);
+                updateStatistics();
+                map.closePopup();
+            } catch (error) {
+                alert('Fehler beim Speichern: ' + error.message);
+            }
+        }
+
+        function updateMarkerColor(osmId) {
+            const address = addresses.find(a => a.osm_id === osmId);
+            const visit = visits.find(v => v.osm_id === osmId);
+            const status = visit?.status || 'not_visited';
+            const color = getStatusColor(status);
+
+            if (markers[osmId]) {
+                markers[osmId].setStyle({
+                    fillColor: color
+                });
+            }
+        }
+
+        // ===== FILTER =====
+        function filterByDistrict() {
+            currentDistrict = document.getElementById('districtFilter').value;
+            updateMarkersVisibility();
+        }
+
+        function filterByStatus() {
+            currentStatus = document.getElementById('statusFilter').value;
+            updateMarkersVisibility();
+        }
+
+        function updateMarkersVisibility() {
+            addresses.forEach(address => {
+                const visit = visits.find(v => v.osm_id === address.osm_id);
+                const status = visit?.status || 'not_visited';
+
+                let visible = true;
+
+                if (currentDistrict) {
+                    const district = districts.find(d => d.id == currentDistrict);
+                    if (district && district.street_name) {
+                        const streets = district.street_name.split(',').map(s => s.trim());
+                        visible = streets.includes(address.addr_street);
+                    }
+                }
+
+                if (currentStatus && visible) {
+                    visible = status === currentStatus;
+                }
+
+                if (markers[address.osm_id]) {
+                    markers[address.osm_id].setStyle({
+                        opacity: visible ? 0.8 : 0.2
+                    });
+                }
+            });
+        }
+
+        // ===== STATISTIKEN =====
+        function updateStatistics() {
+            const total = addresses.length;
+            const visited = visits.filter(v => v.status !== 'not_visited').length;
+            const totalSales = visits.reduce((sum, v) => sum + (v.sale_euro || 0), 0);
+            const totalDonations = visits.reduce((sum, v) => sum + (v.donation_euro || 0), 0);
+
+            const progress = total > 0 ? Math.round((visited / total) * 100) : 0;
+
+            document.getElementById('totalAddresses').textContent = total;
+            document.getElementById('visitedCount').textContent = visited;
+            document.getElementById('totalSales').textContent = totalSales.toFixed(2) + '€';
+            document.getElementById('totalDonations').textContent = totalDonations.toFixed(2) + '€';
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressBar').textContent = progress + '%';
+            document.getElementById('salesStat').textContent = totalSales.toFixed(2) + '€';
+            document.getElementById('donationsStat').textContent = totalDonations.toFixed(2) + '€';
+        }
+
+        // ===== FILTER POPULATION =====
+        function populateFilters() {
+            const districtSelect = document.getElementById('districtFilter');
+            districts.forEach(district => {
+                const option = document.createElement('option');
+                option.value = district.id;
+                option.textContent = district.street_name;
+                districtSelect.appendChild(option);
+            });
+
+            const collectorSelect = document.getElementById('collectorDistrict');
+            districts.forEach(district => {
+                const option = document.createElement('option');
+                option.value = district.id;
+                option.textContent = district.street_name;
+                collectorSelect.appendChild(option);
+            });
+        }
+
+        // ===== ADMIN FUNKTIONEN =====
+        function openAdminModal(type) {
+            if (type === 'collectors') {
+                loadCollectorsList();
+                openModal('collectorsModal');
+            } else if (type === 'districts') {
+                loadDistrictsList();
+                openModal('districtsModal');
+            } else if (type === 'stats') {
+                loadStatistics();
+                openModal('statsModal');
+            } else if (type === 'reset') {
+                openModal('resetModal');
+            }
+        }
+
+        function loadCollectorsList() {
+            const list = document.getElementById('collectorsList');
+            list.innerHTML = '';
+
+            collectors.forEach(collector => {
+                const district = districts.find(d => d.id === collector.district_id);
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 12px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px; background: #f9f9f9;';
+                div.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 5px;">${collector.display_name}</div>
+                    <div style="font-size: 13px; color: #666; margin-bottom: 8px;">${collector.email}</div>
+                    <div style="font-size: 13px; color: #c41e3a; font-weight: 600; margin-bottom: 10px;">
+                        Gebiet: ${district ? district.street_name : 'Nicht zugewiesen'}
+                    </div>
+                    <button class="btn btn-danger" style="width: 100%; padding: 8px;" onclick="deleteCollector(${collector.id})">
+                        <i class="fas fa-trash"></i> Löschen
+                    </button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function loadDistrictsList() {
+            const list = document.getElementById('districtsList');
+            list.innerHTML = '';
+
+            districts.forEach(district => {
+                const collectorCount = collectors.filter(c => c.district_id === district.id).length;
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 12px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px; background: #f9f9f9;';
+                div.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 5px;">${district.street_name}</div>
+                    <div style="font-size: 13px; color: #666; margin-bottom: 8px;">Straßen: ${district.street_name}</div>
+                    <div style="font-size: 13px; color: #c41e3a; font-weight: 600; margin-bottom: 10px;">
+                        Sammler: ${collectorCount}
+                    </div>
+                    <button class="btn btn-danger" style="width: 100%; padding: 8px;" onclick="deleteDistrict(${district.id})">
+                        <i class="fas fa-trash"></i> Löschen
+                    </button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function loadStatistics() {
+            const content = document.getElementById('statsContent');
+            content.innerHTML = '';
+
+            const total = addresses.length;
+            const visited = visits.filter(v => v.status !== 'not_visited').length;
+            const purchased = visits.filter(v => v.status === 'purchased').length;
+            const notHome = visits.filter(v => v.status === 'not_home').length;
+            const noInterest = visits.filter(v => v.status === 'no_interest').length;
+            const totalSales = visits.reduce((sum, v) => sum + (v.sale_euro || 0), 0);
+            const totalDonations = visits.reduce((sum, v) => sum + (v.donation_euro || 0), 0);
+
+            content.innerHTML = `
+                <div class="stats-box">
+                    <div class="stats-label">Gesamt Adressen</div>
+                    <div class="stats-value">${total}</div>
+                </div>
+                <div class="stats-box">
+                    <div class="stats-label">Besucht</div>
+                    <div class="stats-value">${visited} (${Math.round((visited/total)*100)}%)</div>
+                </div>
+                <div class="stats-box">
+                    <div class="stats-label">Gekauft</div>
+                    <div class="stats-value">${purchased}</div>
+                </div>
+                <div class="stats-box">
+                    <div class="stats-label">Nicht angetroffen</div>
+                    <div class="stats-value">${notHome}</div>
+                </div>
+                <div class="stats-box">
+                    <div class="stats-label">Kein Interesse</div>
+                    <div class="stats-value">${noInterest}</div>
+                </div>
+                <div class="stats-box">
+                    <div class="stats-label">Gesamt Verkauft</div>
+                    <div class="stats-value">${totalSales.toFixed(2)}€</div>
+                </div>
+                <div class="stats-box">
+                    <div class="stats-label">Gesamt Gespendet</div>
+                    <div class="stats-value">${totalDonations.toFixed(2)}€</div>
+                </div>
+            `;
+        }
+
+        function openAddCollectorForm() {
+            openModal('addCollectorModal');
+        }
+
+        async function saveCollector() {
+            const name = document.getElementById('collectorName').value;
+            const email = document.getElementById('collectorEmail').value;
+            const districtId = document.getElementById('collectorDistrict').value || null;
+
+            if (!name || !email) {
+                alert('Bitte Name und Email eingeben');
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('collectors')
+                    .insert([{
+                        display_name: name,
+                        email: email,
+                        district_id: districtId
+                    }]);
+
+                if (error) throw error;
+
+                await loadCollectors();
+                loadCollectorsList();
+                closeModal('addCollectorModal');
+                alert('Sammler erfolgreich erstellt!');
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+            }
+        }
+
+        async function deleteCollector(id) {
+            if (!confirm('Wirklich löschen?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('collectors')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                await loadCollectors();
+                loadCollectorsList();
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+            }
+        }
+
+        function openAddDistrictForm() {
+            openModal('addDistrictModal');
+        }
+
+        async function saveDistrict() {
+            const name = document.getElementById('districtName').value;
+            const streets = document.getElementById('districtStreets').value;
+
+            if (!name || !streets) {
+                alert('Bitte Name und Straßen eingeben');
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('districts')
+                    .insert([{
+                        street_name: streets
+                    }]);
+
+                if (error) throw error;
+
+                await loadDistricts();
+                populateFilters();
+                loadDistrictsList();
+                closeModal('addDistrictModal');
+                alert('Gebiet erfolgreich erstellt!');
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+            }
+        }
+
+        async function deleteDistrict(id) {
+            if (!confirm('Wirklich löschen?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('districts')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                await loadDistricts();
+                populateFilters();
+                loadDistrictsList();
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+            }
+        }
+
+        async function confirmReset() {
+            const confirm = document.getElementById('resetConfirm').value;
+
+            if (confirm !== 'ZURÜCKSETZEN') {
+                alert('Bestätigung falsch');
+                return;
+            }
+
+            try {
+                // Alle Besuche löschen
+                const { error } = await supabase
+                    .from('visits')
+                    .delete()
+                    .gt('id', 0);
+
+                if (error) throw error;
+
+                await loadVisits();
+                updateStatistics();
+                addresses.forEach(address => {
+                    updateMarkerColor(address.osm_id);
+                });
+
+                closeModal('resetModal');
+                alert('Daten erfolgreich zurückgesetzt!');
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+            }
+        }
+
+        // ===== MODAL FUNKTIONEN =====
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // Modal schließen bei Klick außerhalb
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
